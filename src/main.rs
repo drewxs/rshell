@@ -1,13 +1,11 @@
 use std::env;
-use std::io::{stdin, stdout, Write};
-use std::iter::Peekable;
+use std::io::{self, Write};
 use std::path::Path;
 use std::process::{Child, Command, Stdio};
-use std::str::{Split, SplitWhitespace};
 
 fn main() {
     loop {
-        let home_dir = env::var("HOME").unwrap();
+        let home_dir = env::var("HOME").unwrap_or("/".to_string());
         let current_dir = env::current_dir()
             .unwrap()
             .to_str()
@@ -16,10 +14,10 @@ fn main() {
             .replace("\\", "/"); // windows
 
         print!("{} » ", current_dir);
-        let _ = stdout().flush();
+        let _ = io::stdout().flush().unwrap();
 
         let mut input = String::new();
-        let _ = stdin().read_line(&mut input);
+        let _ = io::stdin().read_line(&mut input);
 
         let mut cmds = input.trim().split(" | ").peekable();
         let mut prev_cmd = None;
@@ -27,12 +25,12 @@ fn main() {
         while let Some(cmd) = cmds.next() {
             let mut parts = cmd.trim().split_whitespace();
             let cmd = parts.next().unwrap();
-            let args = parts;
+            let args: Vec<&str> = parts.collect();
 
             match cmd {
                 "exit" => return,
                 "cd" => cd(args, &mut prev_cmd),
-                cmd => exec(args, &mut prev_cmd, &mut cmds, cmd),
+                cmd => exec(args, &mut prev_cmd, cmd, cmds.peek().is_some()),
             }
         }
 
@@ -42,29 +40,20 @@ fn main() {
     }
 }
 
-fn cd<'a>(args: SplitWhitespace<'_>, prev_cmd: &'_ mut Option<Child>) {
-    let new_dir = args.peekable().peek().map_or("/", |x| *x);
-    let root = Path::new(new_dir);
-    if let Err(e) = env::set_current_dir(&root) {
-        eprintln!("{}", e);
+fn cd(args: Vec<&str>, prev_cmd: &mut Option<Child>) {
+    if let Err(error) = env::set_current_dir(Path::new(args[0])) {
+        eprintln!("{}", error);
     }
-
     *prev_cmd = None;
 }
 
-fn exec<'a>(
-    args: SplitWhitespace<'_>,
-    prev_cmd: &mut Option<Child>,
-    cmds: &mut Peekable<Split<'_, &str>>,
-    cmd: &str,
-) {
-    let stdin = prev_cmd
-        .as_mut()
-        .map_or(Stdio::inherit(), |output: &mut Child| {
-            Stdio::from(output.stdout.take().unwrap())
-        });
+fn exec(args: Vec<&str>, prev_cmd: &mut Option<Child>, cmd: &str, has_next_cmd: bool) {
+    let stdin = match prev_cmd.as_mut() {
+        Some(output) => Stdio::from(output.stdout.take().unwrap()),
+        None => Stdio::inherit(),
+    };
 
-    let stdout = if cmds.peek().is_some() {
+    let stdout = if has_next_cmd {
         Stdio::piped()
     } else {
         Stdio::inherit()
@@ -80,9 +69,9 @@ fn exec<'a>(
         Ok(output) => {
             *prev_cmd = Some(output);
         }
-        Err(e) => {
+        Err(error) => {
             *prev_cmd = None;
-            eprintln!("{}", e);
+            eprintln!("{}", error);
         }
     };
 }
