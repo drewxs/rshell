@@ -3,6 +3,8 @@ use std::io::{self, Write};
 use std::path::Path;
 use std::process::{Child, Command, Stdio};
 
+use colored::Colorize;
+
 fn main() {
     loop {
         let username = env::var("USER").unwrap_or("unknown".to_string());
@@ -14,7 +16,12 @@ fn main() {
             .replace(&home_dir, "~")
             .replace("\\", "/"); // windows
 
-        print!("{} :: {} » ", username, current_dir);
+        print!(
+            "{} {} {} » ",
+            username.cyan(),
+            "::".red(),
+            current_dir.cyan()
+        );
         let _ = io::stdout().flush().unwrap();
 
         let mut input = String::new();
