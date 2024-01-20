@@ -5,6 +5,7 @@ use std::process::{Child, Command, Stdio};
 
 fn main() {
     loop {
+        let username = env::var("USER").unwrap_or("unknown".to_string());
         let home_dir = env::var("HOME").unwrap_or("/".to_string());
         let current_dir = env::current_dir()
             .unwrap()
@@ -13,7 +14,7 @@ fn main() {
             .replace(&home_dir, "~")
             .replace("\\", "/"); // windows
 
-        print!("{} » ", current_dir);
+        print!("{} :: {} » ", username, current_dir);
         let _ = io::stdout().flush().unwrap();
 
         let mut input = String::new();
