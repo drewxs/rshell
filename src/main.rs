@@ -49,9 +49,20 @@ fn main() {
 }
 
 fn cd(args: Vec<&str>, prev_cmd: &mut Option<Child>) {
-    if let Err(error) = env::set_current_dir(Path::new(args[0])) {
-        eprintln!("{}", error);
-    }
+    match args.get(0) {
+        Some(&path) => {
+            if let Err(error) = env::set_current_dir(Path::new(path)) {
+                eprintln!("{}", error);
+            }
+        }
+        None => {
+            if let Ok(home_dir) = env::var("HOME") {
+                if let Err(error) = env::set_current_dir(Path::new(&home_dir)) {
+                    eprintln!("{}", error);
+                }
+            }
+        }
+    };
     *prev_cmd = None;
 }
 
